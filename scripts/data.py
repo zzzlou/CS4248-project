@@ -21,7 +21,7 @@ data = pd.read_csv(path)
 def extract_emoji_names(text):
     text = text.replace("This is ", "", 1)
     
-    # 使用 [EM] 进行分割
+    # split by "[EM] ""
     emoji_names = [part.strip() for part in text.split("[EM]") if part.strip()]
 
     emoji_names = [re.sub(r"[^\w\d_]", "", name) for name in emoji_names]
@@ -41,7 +41,7 @@ def get_emoji_images(emoji_names):
     for emoji_name in emoji_names:
         image_path = os.path.join(emoji_dir, f"{emoji_name}.png")
 
-        # 检查文件是否存在
+        # check if path exists
         if os.path.exists(image_path):
             image = Image.open(image_path)
             images.append(image)
@@ -97,7 +97,7 @@ new_data = []
 
 
 for idx, row in tqdm(data.iterrows(),total = len(data), desc="Generating Descriptions"):
-    emoji_names = extract_emoji_names(row["sent1"])  # 你可以改成 row["sent2"] 看需求
+    emoji_names = extract_emoji_names(row["sent1"])  
     if emoji_names:
         images = get_emoji_images(emoji_names)
         descriptions = []
@@ -117,7 +117,7 @@ for idx, row in tqdm(data.iterrows(),total = len(data), desc="Generating Descrip
 
 df_new = pd.DataFrame(new_data)
 
-# 保存为 CSV
+# save as CSV
 output_path = "test.json"
 with open(output_path, "w", encoding="utf-8") as json_file:
     json.dump(new_data, json_file, ensure_ascii=False, indent=4)

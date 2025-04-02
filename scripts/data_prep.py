@@ -18,10 +18,12 @@ class EmojiMoEDataset(Dataset):
     def __getitem__(self, idx):
         item = self.data[idx]
 
-        # 拼接前几条 description
+        # concatenate first 3 descriptions
         desc = " ".join(item['generated_description'][:self.desc_limit])
         sent2 = item['sent2']
         label = int(item['label'])
+        mapping = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 6: 5}
+        strategy = mapping[int(item['strategy'])]
 
         # Tokenize sentence pair
         encoded = self.tokenizer(
@@ -36,5 +38,6 @@ class EmojiMoEDataset(Dataset):
             'input_ids': encoded['input_ids'].squeeze(0),
             'attention_mask': encoded['attention_mask'].squeeze(0),
             'token_type_ids': encoded['token_type_ids'].squeeze(0),
-            'labels': torch.tensor(label, dtype=torch.long)
+            'labels': torch.tensor(label, dtype=torch.long),
+            'strategy': torch.tensor(strategy, dtype=torch.long)
         }

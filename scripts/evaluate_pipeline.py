@@ -33,10 +33,10 @@ def generate_description(image,model,processor):
     return processor.batch_decode(generate_ids, skip_special_tokens=True)[0]
 
 def extract_emoji_names(text):
-    # 去掉 "This is "（如果存在的话）
+    # remove "This is "
     text = text.replace("This is ", "", 1)
     
-    # 使用 [EM] 进行分割
+    # split by [EM] 
     emoji_names = [part.strip() for part in text.split("[EM]") if part.strip()]
 
     emoji_names = [re.sub(r"[^\w\d_]", "", name) for name in emoji_names]
@@ -49,51 +49,34 @@ def get_emoji_images(emoji_names):
     for emoji_name in emoji_names:
         image_path = os.path.join("/home/gaobin/zzlou/folder/vlm/emojis", f"{emoji_name}.png")
 
-        # 检查文件是否存在
         if os.path.exists(image_path):
             image = Image.open(image_path)
             images.append(image)
         else:
             print(f"⚠️ {emoji_name} Image not found: {image_path}")
-            images.append(None)  # 图片不存在，填充 None
+            images.append(None)  
     
     return images
     
 def evaluate(data, vlm_model, moe_model, tokenizer, processor, device):
-    """
-    对整个测试集进行端到端评估：
-      - 使用 VL 模型在线生成每个样本的描述
-      - 用生成的描述作为输入，经 tokenizer 编码后送入 MoE 模型预测标签
-
-    Args:
-        data (pd.DataFrame): 测试集数据，至少包含 "sent1", "sent2", "strategy", "label"
-        vlm_model: VL 模型，用于生成描述（例如 LLaVA）
-        moe_model: MoE 模型，用于判断文本对是否蕴含（分类模型）
-        tokenizer: 用于 MoE 模型的 tokenizer
-        processor: 用于 VL 模型的 processor（例如 AutoProcessor）
-        device: 设备（cuda 或 cpu）
-
-    Returns:
-        results (list): 每个样本的详细信息，包括生成的描述、真实标签与预测标签
-    """
-    moe_model.eval()  # 切换到评估模式
+    moe_model.eval()  
     results = []
 
-    # 不需要梯度计算
+    # no need gradient calculations
     with torch.no_grad():
         for idx, row in data.iterrows():
-            # 提取 emoji 名称
+            # extract emoji name
             emoji_names = extract_emoji_names(row["sent1"])
-            # 根据 emoji 名称获取图像列表
+            # get list of images using emoji name
             images = get_emoji_images(emoji_names) if emoji_names else []
             descriptions = []
-            # 对每个图像生成描述；注意这里可能耗时较长
+            # generate descriptions for every image
             for image in images:
                 desc = generate_description(image, vlm_model, processor)
                 descriptions.append(desc)
-            # 将多个描述拼接为一个文本输入
+            # concatenate descriptions of multiple emojis into one
             combined_desc = " ".join(descriptions)
-            # 对文本进行编码；注意这里设定了 max_length，需要根据实际情况调整
+            # encode the input text
             inputs = tokenizer(
                 combined_desc,
                 padding='max_length',
@@ -101,13 +84,13 @@ def evaluate(data, vlm_model, moe_model, tokenizer, processor, device):
                 max_length=128,
                 return_tensors="pt"
             )
-            # 将所有张量转移到目标设备
+            
             inputs = {k: v.to(device) for k, v in inputs.items()}
-            # 使用 MoE 模型预测
+            # predict using moe
             logits = moe_model(**inputs)
             pred = torch.argmax(logits, dim=1).item()
 
-            # 保存结果
+            # save result
             results.append({
                 "sent1": row["sent1"],
                 "sent2": row["sent2"],

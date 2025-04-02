@@ -6,6 +6,7 @@ from data_prep import EmojiMoEDataset
 from transformers import BertTokenizer
 from torch.utils.data import DataLoader
 from collections import Counter, defaultdict
+from transformers import logging
 logging.set_verbosity_error()
 
 def analyze_router_distribution(model, dataloader, device):
@@ -66,7 +67,7 @@ moe_model.load_state_dict(torch.load(moe_model_checkpoint, map_location=device))
 moe_model.to(device)
 moe_model.eval()
 
-# 使用 val_loader 或 train_loader
+# use val_loader or train_loader
 model_path = "bert-base-uncased"
 tokenizer = BertTokenizer.from_pretrained(model_path)
 data_path = "/home/gaobin/zzlou/folder/train.json"
