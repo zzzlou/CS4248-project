@@ -11,11 +11,24 @@ import json
 import os
 from tqdm import tqdm
 
+"""
+Generate dataset for MoE training from the original dataset used in ELCo and emoji images from web
+Input:
+    - dataset_name: test, train, val
+    - image resources: web or local
+    - a VLM model
+Output:
+    - dataset_name.json: generated dataset ready for our task
+"""
+
+# Change this for different datasets: test, train, val
+dataset_name = "test" 
+
 model_name = "llava-hf/llava-1.5-7b-hf"
 model = LlavaForConditionalGeneration.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
 processor = AutoProcessor.from_pretrained(model_name)
 
-path = "/home/gaobin/zzlou/folder/vlm/exp-entailment/test.csv"
+path = f"../../exp-entailment/{dataset_name}.csv"
 data = pd.read_csv(path)
 
 def extract_emoji_names(text):
@@ -34,7 +47,7 @@ def get_unicode_representation(emoji_symbol):
 def get_unicode_representation_upper(emoji_symbol):
     return ' '.join(f"U+{ord(c):X}" for c in emoji_symbol)
 
-emoji_dir = "/home/gaobin/zzlou/folder/vlm/emojis"
+emoji_dir = "../../emojis"
 def get_emoji_images(emoji_names):
     images = []
     
@@ -46,8 +59,7 @@ def get_emoji_images(emoji_names):
             image = Image.open(image_path)
             images.append(image)
         else:
-            print(f"⚠️ {emoji_name} Image Not Found {image_path}")
-            images.append(None)  
+            images.append(get_emoji_images_from_web(emoji_name))
     
     return images
     
@@ -66,12 +78,12 @@ def get_emoji_images_from_web(emoji_names):
         if response.status_code == 200:
             image = Image.open(BytesIO(response.content))
             images.append(image)
-            save_path = os.path.join("/home/gaobin/zzlou/folder/vlm/emojis", f"{emoji_name}.png")
+            save_path = os.path.join("../emojis", f"{emoji_name}.png")
             image.save(save_path, format="PNG")
 
         else:
+            print(f"⚠️ {emoji_name} Image Not Found")
             images.append(None)  
-
     
     return images 
     
@@ -93,8 +105,8 @@ def generate_description(image):
     generate_ids = model.generate(**inputs, max_new_tokens=500)[:, inputs["input_ids"].shape[1]:]
     return processor.batch_decode(generate_ids, skip_special_tokens=True)[0]
 
-new_data = []
 
+new_data = []
 
 for idx, row in tqdm(data.iterrows(),total = len(data), desc="Generating Descriptions"):
     emoji_names = extract_emoji_names(row["sent1"])  
@@ -118,8 +130,8 @@ for idx, row in tqdm(data.iterrows(),total = len(data), desc="Generating Descrip
 df_new = pd.DataFrame(new_data)
 
 # save as CSV
-output_path = "test.json"
+output_path = f"../../data/{dataset_name}.json"
 with open(output_path, "w", encoding="utf-8") as json_file:
     json.dump(new_data, json_file, ensure_ascii=False, indent=4)
 
-print(f"✅ 结果已保存到 {output_path}")
+print(f"✅ Results saved to {output_path}")

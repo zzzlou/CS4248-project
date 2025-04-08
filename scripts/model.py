@@ -11,7 +11,6 @@ from collections import Counter, defaultdict
 import torch.nn.functional as F
 
 
-
 # =============================
 # 2. MoE Model Definition with LoRA Experts
 # =============================
@@ -85,8 +84,8 @@ class MoEModel(nn.Module):
 # 3. Training Function
 # =============================
 from torch.utils.data import DataLoader
-from transformers import AdamW
-from sklearn.metrics import accuracy_score
+from torch.optim import AdamW
+from sklearn.metrics import f1_score
 
 def load_balance_loss(g_weights):
     # g_weights: (batch, num_experts)
@@ -146,7 +145,7 @@ def train(model, train_loader, val_loader, device, num_experts, alpha=1.0, beta=
             all_labels.extend(labels.cpu().numpy())
             progress_bar.set_postfix(loss=loss.item())
 
-        train_acc = accuracy_score(all_labels, all_preds)
+        train_acc = f1_score(all_labels, all_preds, average='macro')
         val_acc = evaluate(model, val_loader, device)
 
         print(f"Epoch {epoch+1}/{epochs} - Total Loss: {total_loss:.4f} (Cls: {total_cls_loss:.4f}, Type: {total_type_loss:.4f}, Bal: {total_balance_loss:.4f}) - Train Acc: {train_acc:.4f} - Val Acc: {val_acc:.4f}")
@@ -176,7 +175,7 @@ def evaluate(model, dataloader, device):
             all_preds.extend(preds.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
 
-    return accuracy_score(all_labels, all_preds)
+    return f1_score(all_labels, all_preds, average='macro')
 
 def analyze_router_distribution(model, dataloader, device):
     model.eval()

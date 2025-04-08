@@ -47,7 +47,7 @@ def get_emoji_images(emoji_names):
     images = []
     
     for emoji_name in emoji_names:
-        image_path = os.path.join("/home/gaobin/zzlou/folder/vlm/emojis", f"{emoji_name}.png")
+        image_path = os.path.join("../emojis", f"{emoji_name}.png")
 
         if os.path.exists(image_path):
             image = Image.open(image_path)
@@ -115,13 +115,13 @@ if __name__ == "__main__":
     processor = AutoProcessor.from_pretrained(vlm_model_name)
     
     # 2. 加载测试集数据
-    test_csv_path = "/home/gaobin/zzlou/folder/vlm/exp-entailment/test.csv"
+    test_csv_path = "../exp-entailment/test.csv"
     data = pd.read_csv(test_csv_path)
     
     # 3. 加载 MoE 模型
     # 假设 MoE 模型是基于 "bert-base-uncased"
     moe_model = MoEModel(num_experts=5, model_path="bert-base-uncased", num_labels=2)
-    moe_model_checkpoint = "/home/gaobin/zzlou/folder/vlm/exp-entailment/best_moe_model.pt"
+    moe_model_checkpoint = "../exp-entailment/best_moe_model.pt"
     moe_model.load_state_dict(torch.load(moe_model_checkpoint, map_location=device))
     moe_model.to(device)
     moe_model.eval()
@@ -133,12 +133,11 @@ if __name__ == "__main__":
     results = evaluate(data, vlm_model, moe_model, tokenizer, processor, device)
     
     # 6. 保存结果到 JSON 文件
-    output_path = "/home/gaobin/zzlou/folder/vlm/exp-entailment/test_results.json"
+    output_path = "../exp-entailment/test_results.json"
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=4)
     
     print("Evaluation completed. Results saved to:", output_path)
-
 
     
 

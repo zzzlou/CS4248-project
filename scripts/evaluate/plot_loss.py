@@ -37,4 +37,5 @@ plt.legend()
 plt.grid(True)
 
 plt.tight_layout()
+plt.savefig("loss_plot.png")
 plt.show()

@@ -1,11 +1,17 @@
+"""
+Train and save the MoE model
+"""
+
+
 import torch
 from transformers import BertTokenizer
 from torch.utils.data import DataLoader, random_split
 
-from data_prep import EmojiMoEDataset
+from dataset.emoeji_dataset import EmojiMoEDataset
 from model import MoEModel  # 假设你模型写在 moe_model.py 里
 from model import train   # 假设训练代码也写在单独文件里
 from transformers import logging
+
 
 logging.set_verbosity_error()
 def main():
@@ -16,7 +22,7 @@ def main():
     # 2. Load tokenizer and dataset
     model_path = "bert-base-uncased"
     tokenizer = BertTokenizer.from_pretrained(model_path)
-    data_path = "/home/gaobin/zzlou/folder/balanced_train.json"
+    data_path = "../data/train.json"
     dataset = EmojiMoEDataset(data_path, tokenizer, max_length=256, desc_limit=3)
 
     # 3. Train/Val split
@@ -45,7 +51,7 @@ def main():
         num_experts=6,         # 传入 expert 数量，用于负载均衡 loss 的计算
         alpha=1.0,             # error type loss 权重
         beta=0.01,             # load balancing loss 权重
-        save_path='best_moe_model.pt',
+        save_path='model/best_moe_model.pt',
         epochs=20,
         lr=2e-5
     )

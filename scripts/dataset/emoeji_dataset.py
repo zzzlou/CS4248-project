@@ -3,6 +3,11 @@ import torch
 from torch.utils.data import Dataset
 from transformers import BertTokenizer
 
+
+"""
+Dataset definition for MoE training
+"""
+
 class EmojiMoEDataset(Dataset):
     def __init__(self, json_path, tokenizer, max_length=128, desc_limit=2):
         with open(json_path, 'r') as f:

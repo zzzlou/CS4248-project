@@ -60,17 +60,19 @@ def plot_router_distribution(route_counts):
     plt.title("Router Expert Selection Distribution")
     plt.show()
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-moe_model = MoEModel(num_experts=5, model_path="bert-base-uncased", num_labels=2)
-moe_model_checkpoint = "/home/gaobin/zzlou/folder/best_moe_model_1.pt"
-moe_model.load_state_dict(torch.load(moe_model_checkpoint, map_location=device))
-moe_model.to(device)
-moe_model.eval()
 
-# use val_loader or train_loader
-model_path = "bert-base-uncased"
-tokenizer = BertTokenizer.from_pretrained(model_path)
-data_path = "/home/gaobin/zzlou/folder/train.json"
-dataset = EmojiMoEDataset(data_path, tokenizer, max_length=128, desc_limit=2)
-train_loader = DataLoader(dataset, batch_size=8, shuffle=True)
-analyze_router_distribution(moe_model, train_loader, device)
+if __name__ == "__main__":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    moe_model = MoEModel(num_experts=5, model_path="bert-base-uncased", num_labels=2)
+    moe_model_checkpoint = "/home/gaobin/zzlou/folder/best_moe_model_1.pt"
+    moe_model.load_state_dict(torch.load(moe_model_checkpoint, map_location=device))
+    moe_model.to(device)
+    moe_model.eval()
+
+    # use val_loader or train_loader
+    model_path = "bert-base-uncased"
+    tokenizer = BertTokenizer.from_pretrained(model_path)
+    data_path = "/home/gaobin/zzlou/folder/train.json"
+    dataset = EmojiMoEDataset(data_path, tokenizer, max_length=128, desc_limit=2)
+    train_loader = DataLoader(dataset, batch_size=8, shuffle=True)
+    analyze_router_distribution(moe_model, train_loader, device)
