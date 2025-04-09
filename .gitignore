@@ -1,3 +1,5 @@
 best_moe_model.pt
 
 *.DS_Store
+data/emojis/
+data/upsampled
