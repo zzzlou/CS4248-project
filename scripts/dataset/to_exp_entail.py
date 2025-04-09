@@ -42,21 +42,25 @@ output_path = "/workspace/CS4248-project/data/prepare/dataset_exp_entail.json"
 with open(output_path, 'w') as f:
     json.dump(dataset, f, indent=2)
 
-# randomly split dataset into train, test
-train_size = int(0.8 * len(dataset))
-test_size = len(dataset) - train_size
 
-train_dataset, test_dataset = sklearn.model_selection.train_test_split(dataset, test_size=test_size, random_state=42)
 
-# save train, test dataset
-train_path = "/workspace/CS4248-project/data/train.json"
 test_path = "/workspace/CS4248-project/data/test.json"
+train_path = "/workspace/CS4248-project/data/train.json"
+val_path = "/workspace/CS4248-project/data/val.json"
+
+train_dataset, test_dataset = sklearn.model_selection.train_test_split(dataset, test_size=0.1, random_state=42)
+train_dataset, val_dataset = sklearn.model_selection.train_test_split(train_dataset, test_size=1/9, random_state=42)
+
+with open(test_path, 'w') as f:
+    json.dump(test_dataset, f, indent=2)
 
 with open(train_path, 'w') as f:
     json.dump(train_dataset, f, indent=2)
 
-with open(test_path, 'w') as f:
-    json.dump(test_dataset, f, indent=2)
+with open(val_path, 'w') as f:
+    json.dump(val_dataset, f, indent=2)
+
+
 
 
 

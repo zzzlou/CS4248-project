@@ -50,8 +50,9 @@ export CUDA_VISIBLE_DEVICES=0
 ### Data Preparation
 ```bash
 cd scripts/dataset
+python data_from_ELCo.py
+python get_descriptions.py
 python data_generating.py
-python downsample.py
 ```
 
 ### Training

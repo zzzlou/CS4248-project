@@ -27,7 +27,7 @@ class EmojiMoEDataset(Dataset):
         desc = " ".join(item['generated_description'][:self.desc_limit])
         sent2 = item['sent2']
         label = int(item['label'])
-        mapping = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 6: 5}
+        mapping = {"Metaphorical": 0, "Single": 1, "Semantic list": 2, "Reduplication": 3, "Direct": 4}
         strategy = mapping[int(item['strategy'])]
 
         # Tokenize sentence pair
@@ -46,3 +46,4 @@ class EmojiMoEDataset(Dataset):
             'labels': torch.tensor(label, dtype=torch.long),
             'strategy': torch.tensor(strategy, dtype=torch.long)
         }
+
