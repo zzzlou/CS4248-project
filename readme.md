@@ -37,7 +37,7 @@ conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=
 
 Additional packages if needed:
 ```bash
-pip install pandas transformers emoji accelerate matplotlib left scikit-learn
+pip install pandas transformers emoji accelerate matplotlib left scikit-learn wonderwords
 ```
 
 Set up GPU for training:
