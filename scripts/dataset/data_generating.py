@@ -21,25 +21,13 @@ Output:
     - dataset_name.json: generated dataset ready for our task
 """
 
-# Change this for different datasets: test, train, val
-dataset_name = "test" 
-
 model_name = "llava-hf/llava-1.5-7b-hf"
 model = LlavaForConditionalGeneration.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
 processor = AutoProcessor.from_pretrained(model_name)
 
-path = f"../../exp-entailment/{dataset_name}.csv"
+path = "/workspace/CS4248-project/data/elco/final_ELCo.csv"
 data = pd.read_csv(path)
-
-def extract_emoji_names(text):
-    text = text.replace("This is ", "", 1)
-    
-    # split by "[EM] ""
-    emoji_names = [part.strip() for part in text.split("[EM]") if part.strip()]
-
-    emoji_names = [re.sub(r"[^\w\d_]", "", name) for name in emoji_names]
-    
-    return emoji_names if emoji_names else None
+emoji_dir = "/workspace/CS4248-project/emojis"
 
 def get_unicode_representation(emoji_symbol):
     return '-'.join(f"{ord(c):X}" for c in emoji_symbol).lower()
@@ -47,7 +35,6 @@ def get_unicode_representation(emoji_symbol):
 def get_unicode_representation_upper(emoji_symbol):
     return ' '.join(f"U+{ord(c):X}" for c in emoji_symbol)
 
-emoji_dir = "../../emojis"
 def get_emoji_images(emoji_names):
     images = []
     
