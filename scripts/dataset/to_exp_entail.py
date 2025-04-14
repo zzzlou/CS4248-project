@@ -38,7 +38,7 @@ for _, row in ELCo_dataset.iterrows():
     example = {
         'sent1': f"This is {row['Description']}", 
         'sent2': f"This is {row['EN']}",
-        'strategy': row['Composition strategy'],
+        'strategy': 'Negative' if row['Attribute'] == "Negative_Random" else row['Composition strategy'],
         'label': 0 if row['Attribute'] == "Negative_Random" else 1,
         'generated_description': descriptions
     }
@@ -67,7 +67,6 @@ with open(train_path, 'w') as f:
 
 with open(val_path, 'w') as f:
     json.dump(val_dataset, f, indent=2)
-
 
 
 
