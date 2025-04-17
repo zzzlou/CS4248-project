@@ -29,13 +29,13 @@ scripts/
     generate_description.py
 
 exp-entailment/
-    train.csv, val.csv, test.csv    # Dataset splits from ELCo (processed)
+    train.csv, val.csv, test.csv   # Dataset splits from ELCo
 
 emojis/
     *.png                          # Crawled emoji images (PNG format)
 
 data/
-    ...                            # (Optional) Generated Descriptions
+    ...                            # (Optional) Generated Descriptions in json format
 ```
 ## Usage
 
