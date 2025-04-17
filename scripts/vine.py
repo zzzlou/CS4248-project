@@ -162,7 +162,7 @@ class EndToEndVisualBART(nn.Module):
         super().__init__()
         from transformers import BartModel
         self.bart = BartModel.from_pretrained(bart_model_path)
-        # 不同于 RoBERTa, BART 没有 pooler, 可以用均值池化 last_hidden_state
+        
         self.visual_proj = nn.Linear(clip_hidden_size, hidden_dim)
         self.classifier = nn.Sequential(
             nn.Linear(hidden_dim * 2, hidden_dim),
