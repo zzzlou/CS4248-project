@@ -100,9 +100,7 @@ class EmojiMoEDataset(Dataset):
 
 class EndToEndVisualBERT(nn.Module):
     def __init__(self, bert_model_path, clip_hidden_size, num_labels, hidden_dim=768):
-        """
-        该模型将 BERT 的 [CLS] 向量和经过视觉映射的 emoji 特征拼接后进入分类 MLP
-        """
+
         super().__init__()
         # Text branch: load pretrained BERT
         self.bert = BertModel.from_pretrained(bert_model_path)
@@ -134,9 +132,7 @@ class EndToEndVisualBERT(nn.Module):
 
 class EndToEndVisualRoBERTa(nn.Module):
     def __init__(self, roberta_model_path, clip_hidden_size, num_labels, hidden_dim=None):
-        """
-        该模型将 RoBERTa 的 [CLS] 向量和经过视觉映射的 emoji 特征拼接后进入分类 MLP
-        """
+
         super().__init__()
         # Text branch: load pretrained RoBERTa
         self.roberta = RobertaModel.from_pretrained(roberta_model_path)
@@ -308,7 +304,6 @@ def main():
 
     feature_extractor = CLIPImageProcessor.from_pretrained(clip_model_name)
 
-    # 修改为相对路径
     train_csv = "../exp-entailment/train.csv"
     val_csv = "../exp-entailment/val.csv"
     test_csv = "../exp-entailment/test.csv"
@@ -325,7 +320,6 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     num_labels = 2  
     
-    # 根据选择的模型类型创建相应的模型
     if model_type == "bert":
         model = EndToEndVisualBERT(model_path, clip_hidden_size, num_labels)
         model.bert.resize_token_embeddings(len(tokenizer))
