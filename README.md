@@ -54,9 +54,9 @@ python scripts/finetune_original.py
 
 Before running the VINE model, modify the `model_type` variable in `scripts/vine.py` to select the desired textual backbone:
 
-- `"bert"`: BERT\textsubscript{base}
-- `"roberta"`: RoBERTa\textsubscript{large}
-- `"bart"`: BART\textsubscript{large}
+- `"bert"`: BERT_base
+- `"roberta"`: RoBERTa_large
+- `"bart"`: BART_large
 
 Example (inside `scripts/vine.py`):
 
