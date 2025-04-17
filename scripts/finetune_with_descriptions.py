@@ -45,7 +45,6 @@ class EmojiMoEDataset(Dataset):
             'attention_mask': encoded['attention_mask'].squeeze(0),
             'token_type_ids': encoded['token_type_ids'].squeeze(0),
             'labels': torch.tensor(label, dtype=torch.long),
-            # 如果需要用来统计策略，这里保留也行
             'strategy': torch.tensor(strategy, dtype=torch.long)
         }
 
@@ -55,7 +54,7 @@ class EmojiMoEDataset(Dataset):
 class PureBERTModel(nn.Module):
     def __init__(self, model_path, num_labels):
         super().__init__()
-        # 直接加载 BertForSequenceClassification
+        # load BertForSequenceClassification
         self.bert = BertForSequenceClassification.from_pretrained(model_path, num_labels=num_labels, ignore_mismatched_sizes=True)
     def forward(self, input_ids, attention_mask, token_type_ids=None):
         outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
@@ -131,7 +130,6 @@ def evaluate(model, dataloader, device, per_strategy=False):
             attention_mask = batch['attention_mask'].to(device)
             token_type_ids = batch['token_type_ids'].to(device)
             labels = batch['labels'].to(device)
-            # strategy 用于统计，这里仍保留到 CPU 上
             strategies = batch['strategy']
             logits = model(input_ids, attention_mask, token_type_ids=token_type_ids)
             preds = torch.argmax(logits, dim=1)
@@ -162,14 +160,14 @@ def main():
     tokenizer = BertTokenizer.from_pretrained(model_path)
     # tokenizer.add_tokens(['[EM]'])
     
-    # 注意数据文件路径需要你自己修改
+
     train_json = "/home/gaobin/zzlou/folder/vlm/data/fixed_train.json"
     val_json = "/home/gaobin/zzlou/folder/vlm/data/fixed_val.json"
     test_json = "/home/gaobin/zzlou/folder/vlm/data/fixed_test.json"
 
     # train_json = "/home/gaobin/zzlou/folder/vlm/exp-entailment/train.csv"
     # val_json = "/home/gaobin/zzlou/folder/vlm/exp-entailment/val.csv"
-    # test_json = "/hom选·行·行·e/gaobin/zzlou/folder/vlm/exp-entailment/test.csv"
+    # test_json = "/home/gaobin/zzlou/folder/vlm/exp-entailment/test.csv"
     
     train_dataset = EmojiMoEDataset(train_json, tokenizer, max_length=256)
     val_dataset = EmojiMoEDataset(val_json, tokenizer, max_length=256)

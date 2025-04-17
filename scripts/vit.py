@@ -99,7 +99,7 @@ class EmojiMoEDataset(Dataset):
 class EndToEndVisualBERT(nn.Module):
     def __init__(self, bert_model_path, clip_hidden_size, num_labels, hidden_dim=768):
         """
-        该模型将 BERT 的 [CLS] 向量和经过视觉映射的 emoji 特征拼接后进入分类 MLP
+        concatenate BERT's [CLS] and mapped emoji features to feed into MLP
         """
         super().__init__()
         # Text branch: load pretrained BERT
