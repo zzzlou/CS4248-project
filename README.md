@@ -23,7 +23,7 @@ Our experiments demonstrate that incorporating visual features consistently impr
 
 ```
 scripts/
-    vit.py                        
+    vine.py                        
     finetune_original.py           
     finetune_with_descriptions.py  
     generate_description.py
@@ -50,6 +50,21 @@ python scripts/finetune_original.py
 ```
 ### 3. Running VINE (Visual + Textual Fusion)
 
+#### 3.1 Setting Model Type
+
+Before running the VINE model, modify the `model_type` variable in `scripts/vine.py` to select the desired textual backbone:
+
+- `"bert"`: BERT\textsubscript{base}
+- `"roberta"`: RoBERTa\textsubscript{large}
+- `"bart"`: BART\textsubscript{large}
+
+Example (inside `scripts/vine.py`):
+
+```
+model_type = "bert"  # Options: "bert", "roberta", "bart"
+```
+
+#### 3.2 Running the script
 ```
 python scripts/vit.py
 ```

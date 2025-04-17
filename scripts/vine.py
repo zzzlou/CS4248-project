@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
-from transformers import BertModel, CLIPVisionModel, CLIPFeatureExtractor
+from transformers import BertModel, RobertaModel, CLIPVisionModel, CLIPFeatureExtractor
 import pandas as pd
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
-from transformers import BertTokenizer
+from transformers import BertTokenizer, RobertaTokenizer
 from torch.optim import AdamW
 from sklearn.metrics import accuracy_score
 from tqdm import tqdm
@@ -14,6 +14,7 @@ from PIL import Image
 import os
 import re
 from transformers import CLIPImageProcessor
+from transformers import BartTokenizer
 
 logging.set_verbosity_error()
 
@@ -30,7 +31,7 @@ def extract_emoji_names(text):
 
 def get_emoji_images(emoji_names):
     images = []
-    emoji_dir = "/home/gaobin/zzlou/folder/vlm/emojis"
+    emoji_dir = "../emojis"
     for emoji_name in emoji_names:
         image_path = os.path.join(emoji_dir, f"{emoji_name}.png")
         if os.path.exists(image_path):
@@ -87,9 +88,10 @@ class EmojiMoEDataset(Dataset):
             visual_emb = torch.zeros(self.clip_vision.config.hidden_size)
 
         return {
-            'input_ids': encoded['input_ids'].squeeze(0),          # [seq_len]
-            'attention_mask': encoded['attention_mask'].squeeze(0),    # [seq_len]
-            'token_type_ids': encoded['token_type_ids'].squeeze(0),    # [seq_len]
+            'input_ids': encoded['input_ids'].squeeze(0),
+            'attention_mask': encoded['attention_mask'].squeeze(0),
+            'token_type_ids': encoded['token_type_ids'].squeeze(0) if 'token_type_ids' in encoded
+                            else torch.zeros_like(encoded['input_ids'].squeeze(0)),
             'labels': torch.tensor(label, dtype=torch.long),
             'strategy': torch.tensor(strategy, dtype=torch.long),
             'images': visual_emb  # Visual feature vector [clip_hidden_size]
@@ -99,7 +101,7 @@ class EmojiMoEDataset(Dataset):
 class EndToEndVisualBERT(nn.Module):
     def __init__(self, bert_model_path, clip_hidden_size, num_labels, hidden_dim=768):
         """
-        concatenate BERT's [CLS] and mapped emoji features to feed into MLP
+        该模型将 BERT 的 [CLS] 向量和经过视觉映射的 emoji 特征拼接后进入分类 MLP
         """
         super().__init__()
         # Text branch: load pretrained BERT
@@ -116,16 +118,70 @@ class EndToEndVisualBERT(nn.Module):
 
     def forward(self, input_ids, attention_mask, token_type_ids, images):
         # Text branch: get [CLS] representation
-        bert_outputs = self.bert(input_ids=input_ids,
-                                 attention_mask=attention_mask,
-                                 token_type_ids=token_type_ids)
+        bert_outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
         cls_text = bert_outputs.pooler_output  # [batch, hidden_dim]
 
-        # Project visual features to match BERT space
-        mapped_visual = self.visual_proj(images)  # [batch, hidden_dim]
+        # # Project visual features to match BERT space
+        # mapped_visual = self.visual_proj(images)  # [batch, hidden_dim]
 
-        # Concatenate and classify
+        # # Concatenate and classify
+        # fused_repr = torch.cat([cls_text, mapped_visual], dim=1)  # [batch, hidden_dim*2]
+
+        fused_repr = torch.cat([cls_text, images], dim=1)
+        logits = self.classifier(fused_repr)
+        return logits
+
+
+class EndToEndVisualRoBERTa(nn.Module):
+    def __init__(self, roberta_model_path, clip_hidden_size, num_labels, hidden_dim=None):
+        """
+        该模型将 RoBERTa 的 [CLS] 向量和经过视觉映射的 emoji 特征拼接后进入分类 MLP
+        """
+        super().__init__()
+        # Text branch: load pretrained RoBERTa
+        self.roberta = RobertaModel.from_pretrained(roberta_model_path)
+        if hidden_dim is None:
+            hidden_dim = self.roberta.config.hidden_size
+        # Visual projection layer: map CLIP features to RoBERTa hidden space
+        self.visual_proj = nn.Linear(clip_hidden_size, hidden_dim)
+        # MLP classifier
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(hidden_dim, num_labels)
+        )
+
+    def forward(self, input_ids, attention_mask, images):
+        # Text branch: get [CLS] representation
+        roberta_outputs = self.roberta(input_ids=input_ids, attention_mask=attention_mask)
+        cls_text = roberta_outputs.pooler_output
+        mapped_visual = self.visual_proj(images)  # [batch, hidden_dim]
         fused_repr = torch.cat([cls_text, mapped_visual], dim=1)  # [batch, hidden_dim*2]
+        logits = self.classifier(fused_repr)
+        return logits
+
+class EndToEndVisualBART(nn.Module):
+    def __init__(self, bart_model_path, clip_hidden_size, num_labels, hidden_dim=1024):
+        super().__init__()
+        from transformers import BartModel
+        self.bart = BartModel.from_pretrained(bart_model_path)
+        # 不同于 RoBERTa, BART 没有 pooler, 可以用均值池化 last_hidden_state
+        self.visual_proj = nn.Linear(clip_hidden_size, hidden_dim)
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(hidden_dim, num_labels)
+        )
+    
+    def forward(self, input_ids, attention_mask, images):
+        bart_outputs = self.bart(input_ids=input_ids, attention_mask=attention_mask)
+        hidden_states = bart_outputs.last_hidden_state 
+        mask = attention_mask.unsqueeze(-1) 
+        pooled_text = torch.sum(hidden_states * mask, dim=1) / torch.clamp(mask.sum(dim=1), min=1e-9)
+        mapped_visual = self.visual_proj(images) 
+        fused_repr = torch.cat([pooled_text, mapped_visual], dim=1)
         logits = self.classifier(fused_repr)
         return logits
 
@@ -143,15 +199,18 @@ def train(model, train_loader, val_loader, test_loader, device, epochs=10, lr=1e
         total_loss = 0
         all_preds, all_labels = [], []
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs}"):
-
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
-            token_type_ids = batch['token_type_ids'].to(device)
+            token_type_ids = batch.get('token_type_ids').to(device)
             labels = batch['labels'].to(device)
             images = batch['images'].to(device)
             
             optimizer.zero_grad()
-            logits = model(input_ids, attention_mask, token_type_ids, images)
+            if torch.equal(token_type_ids, torch.zeros_like(input_ids)):
+                logits = model(input_ids, attention_mask, images)
+            else:
+                logits = model(input_ids, attention_mask, token_type_ids, images)
+            
             loss = criterion(logits, labels)
             loss.backward()
             optimizer.step()
@@ -193,11 +252,15 @@ def evaluate(model, dataloader, device, per_strategy=False):
         for batch in dataloader:
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
-            token_type_ids = batch['token_type_ids'].to(device)
+            token_type_ids = batch.get('token_type_ids').to(device)
             labels = batch['labels'].to(device)
             strategies = batch['strategy']
             images = batch['images'].to(device)
-            logits = model(input_ids, attention_mask, token_type_ids, images)
+
+            if torch.equal(token_type_ids, torch.zeros_like(input_ids)):
+                logits = model(input_ids, attention_mask, images)
+            else:
+                logits = model(input_ids, attention_mask, token_type_ids, images)
             preds = torch.argmax(logits, dim=1)
             all_preds.extend(preds.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
@@ -219,7 +282,23 @@ def evaluate(model, dataloader, device, per_strategy=False):
 
 
 def main():
-    bert_model_path = "textattack/bert-base-uncased-mnli"
+    model_type = "bert"
+    if model_type == "bert":
+        bert_model_path = "textattack/bert-base-uncased-mnli"
+        tokenizer = BertTokenizer.from_pretrained(bert_model_path)
+        tokenizer.add_tokens(['[EM]'])
+        model_path = bert_model_path
+    elif model_type == "bart":
+        bart_model_path = "textattack/facebook-bart-large-MNLI"
+        tokenizer = BartTokenizer.from_pretrained(bart_model_path)
+        tokenizer.add_tokens(['[EM]'])
+        model_path = bart_model_path
+    else:
+        roberta_model_path = "FacebookAI/roberta-large-mnli"
+        tokenizer = RobertaTokenizer.from_pretrained(roberta_model_path)
+        tokenizer.add_tokens(['[EM]'])
+        model_path = roberta_model_path
+    
     clip_model_name = "openai/clip-vit-base-patch32"
 
     # Load CLIP vision model and freeze it
@@ -227,14 +306,12 @@ def main():
     clip_vision.eval()
     clip_hidden_size = clip_vision.config.hidden_size
 
-    tokenizer = BertTokenizer.from_pretrained(bert_model_path)
-    tokenizer.add_tokens(['[EM]'])
     feature_extractor = CLIPImageProcessor.from_pretrained(clip_model_name)
 
-    
-    train_csv = "/home/gaobin/zzlou/folder/vlm/exp-entailment/train.csv"
-    val_csv = "/home/gaobin/zzlou/folder/vlm/exp-entailment/val.csv"
-    test_csv = "/home/gaobin/zzlou/folder/vlm/exp-entailment/test.csv"
+    # 修改为相对路径
+    train_csv = "../exp-entailment/train.csv"
+    val_csv = "../exp-entailment/val.csv"
+    test_csv = "../exp-entailment/test.csv"
 
     # Construct datasets
     train_dataset  = EmojiMoEDataset(train_csv, tokenizer, feature_extractor, clip_vision, max_length=256)
@@ -246,13 +323,23 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=8)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
     num_labels = 2  
-    model = EndToEndVisualBERT(bert_model_path, clip_hidden_size, num_labels)
-    # Resize BERT embeddings to account for new “[EM]” token
-    model.bert.resize_token_embeddings(len(tokenizer))
     
-    train(model, train_loader, val_loader, test_loader, device, epochs=10, lr=1e-5, save_path='best_combbert_4_11_1.pt')
+    # 根据选择的模型类型创建相应的模型
+    if model_type == "bert":
+        model = EndToEndVisualBERT(model_path, clip_hidden_size, num_labels)
+        model.bert.resize_token_embeddings(len(tokenizer))
+        save_path = 'best_bert_base.pt'
+    elif model_type == "bart":
+        model = EndToEndVisualBART(model_path, clip_hidden_size, num_labels)
+        model.bart.resize_token_embeddings(len(tokenizer))
+        save_path = 'best_bart_large.pt'
+    else:
+        model = EndToEndVisualRoBERTa(model_path, clip_hidden_size, num_labels)
+        model.roberta.resize_token_embeddings(len(tokenizer))
+        save_path = 'best_roberta_large.pt'
+    
+    train(model, train_loader, val_loader, test_loader, device, epochs=10, lr=1e-5, save_path=save_path)
 
 
 if __name__ == "__main__":
