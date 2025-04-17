@@ -66,7 +66,7 @@ model_type = "bert"  # Options: "bert", "roberta", "bart"
 
 #### 3.2 Running the script
 ```
-python scripts/vit.py
+python scripts/vine.py
 ```
 ### 4. Running Ablation Study (Text with Generated Descriptions)
 ```
